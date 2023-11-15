@@ -1,0 +1,4 @@
+sudo docker-compose up --build --> docker-composeni run qilish
+sudo systemctl stop postgresql --> agar postgres ishlab turgan bo'lsa shuni o'chirib keyin run qilish kerak
+sudo docker-compose ps --> bizdagi ishlagan yoki ishlab turgan dockerlarni korstaib turadi
+sudo docker exec -it db psql -U <databaseni useri> postgres -- docker dagi db ga kiradi.
