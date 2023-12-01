@@ -5,15 +5,18 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from .views import RegisterAPIView, LogoutAPIView, UserInfoAPIView, CreateResumeView, FacebookLogin, GoogleLogin, \
-    RedirectToGoogleAPIView, GithubLogin, callback, callback_github
+from .views import RegisterAPIView, LogoutAPIView, UserInfoAPIView, FacebookLogin, GoogleLogin, \
+    RedirectToGoogleAPIView, GithubLogin, callback, callback_github, ContactCreateAPIView, ContactUpdateDestroyAPIView
 
 urlpatterns = [
-    # api
+    # user registration APIs
     path('register', RegisterAPIView.as_view(), name='register'),
     path('logout', LogoutAPIView.as_view(), name='logout'),
     path('profile', UserInfoAPIView.as_view(), name='user-info'),
-    path('create-resume/', CreateResumeView.as_view(), name='create_resume'),
+
+    # CRUD API of user data
+    path('contact-create', ContactCreateAPIView.as_view(), name='contact-create'),
+    path('contact-update/<int:user_id>', ContactUpdateDestroyAPIView.as_view(), name='contact-update'),
 
     # drj-jwt
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

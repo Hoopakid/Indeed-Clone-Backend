@@ -7,7 +7,3 @@ class IsSuperUserPermission(permissions.BasePermission):
         return bool(
             request.user and request.user.is_superuser and request.user.is_authenticated
         )
-
-
-class JobCreatePermission(permissions.BasePermission):
-    pass

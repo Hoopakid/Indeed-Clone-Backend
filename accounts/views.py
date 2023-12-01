@@ -3,8 +3,9 @@ import os
 import requests
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
+from rest_framework import generics, status
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.generics import GenericAPIView, CreateAPIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -17,7 +18,8 @@ from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 
-from .serializers import UserSerializer, ResumeSerializer, UserRegisterSerializer, LogoutSerializer
+from .models import UserContactInformation
+from .serializers import UserSerializer, UserRegisterSerializer, LogoutSerializer, ContactSerializer
 
 User = get_user_model()
 
@@ -50,7 +52,8 @@ class RegisterAPIView(GenericAPIView):
             user_serializer = UserSerializer(user)
             return Response({'success': True, 'data': user_serializer.data})
         else:
-            return Response({'success': False, 'message': 'Passwords are not same!'}, status=400)
+            return Response({'success': False, 'message': 'Passwords are not same!'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class LogoutAPIView(GenericAPIView):
@@ -65,33 +68,13 @@ class LogoutAPIView(GenericAPIView):
 
 
 class UserInfoAPIView(GenericAPIView):
+    serializer_class = UserSerializer
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
         user = request.user
-        user_serializer = UserSerializer(user)
+        user_serializer = self.get_serializer(data=user)
         return Response(user_serializer.data)
-
-
-# THIS IS THE ANOTHER WAY FOR CreateResumeView
-# class CreateResumeView(CreateAPIView):
-#     serializer_class = ResumeSerializer
-#     permission_classes = [IsAuthenticated]
-#
-#     def perform_create(self, serializer):
-#         serializer.save(user=self.request.user)
-
-
-class CreateResumeView(GenericAPIView):
-    permission_classes = ()
-    serializer_class = ResumeSerializer
-
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=200)
-        return Response(serializer.errors, status=400)
 
 
 class RedirectToGoogleAPIView(GenericAPIView):
@@ -126,7 +109,6 @@ class GithubLogin(SocialLoginView):
 def callback(request):
     code = request.GET.get("code")
     res = requests.post("http://localhost:8000/accounts/google", data={"code": code}, timeout=30)
-    print('Response >>>', res.json())
     return Response(res.json())
 
 
@@ -135,3 +117,21 @@ def callback_github(request):
     code = request.GET.get("code")
     res = requests.post("http://localhost:8000/accounts/github", data={"code": code}, timeout=30)
     return Response(res.json())
+
+
+class ContactCreateAPIView(generics.GenericAPIView):
+    queryset = UserContactInformation.objects.all()
+    serializer_class = ContactSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class ContactUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = UserContactInformation.objects.all()
+    serializer_class = ContactSerializer
+    permission_classes = (IsAuthenticated,)
