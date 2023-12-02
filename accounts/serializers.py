@@ -27,3 +27,4 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserContactInformation
         fields = '__all__'
+        read_only_fields = ('user',)

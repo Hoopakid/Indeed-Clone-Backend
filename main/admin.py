@@ -1,3 +1,7 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import *
+
+admin.site.register((Discount, ApplyJob, PaymentOption, PaymentStatus, UserPaymentModel, UserPaymentCard, JobCreate,
+                     JobType, JobSchedule, StateJob, CreateResumeOnIndeed, CompensationPackage, UploadJob,
+                     UploadResumeWithFile, SkillsForJob))

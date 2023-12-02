@@ -1,8 +1,9 @@
 import os
-
 import requests
+
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
+
 from rest_framework import generics, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.generics import GenericAPIView
@@ -16,10 +17,13 @@ from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+
 from dj_rest_auth.registration.views import SocialLoginView
 
 from .models import UserContactInformation
 from .serializers import UserSerializer, UserRegisterSerializer, LogoutSerializer, ContactSerializer
+
+from main.permission import IsHisObjectPermission
 
 User = get_user_model()
 
@@ -80,7 +84,7 @@ class UserInfoAPIView(GenericAPIView):
 class RedirectToGoogleAPIView(GenericAPIView):
 
     def get(self, request):
-        google_redirect_uri = os.getenv('GOOGLE_REDIRECT_URI')
+        google_redirect_uri = os.getenv('GOOGLE_REDIRECT_URL')
         try:
             google_client_id = SocialApp.objects.get(provider='google').client_id
         except SocialApp.DoesNotExist:
@@ -134,4 +138,4 @@ class ContactCreateAPIView(generics.GenericAPIView):
 class ContactUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserContactInformation.objects.all()
     serializer_class = ContactSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsHisObjectPermission)

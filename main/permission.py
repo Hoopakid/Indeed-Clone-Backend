@@ -12,3 +12,8 @@ class CanCreateJobPermission(permissions.BasePermission):
             except JobCreate.DoesNotExist:
                 return False
         return False
+
+
+class IsHisObjectPermission(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.user == request.user

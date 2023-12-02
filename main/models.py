@@ -17,7 +17,7 @@ class Discount(models.Model):
         return self.percentage_of_discount
 
 
-class PaymentOptions(models.Model):
+class PaymentOption(models.Model):
     month_trial = models.IntegerField()
     price = models.FloatField()
     option_description = models.TextField()
@@ -33,6 +33,10 @@ class PaymentStatus(models.Model):
     def __str__(self):
         return self.status
 
+    class Meta:
+        verbose_name = "PaymentStatus"
+        verbose_name_plural = "PaymentStatus"
+
 
 class UserPaymentCard(models.Model):
     card_number = models.IntegerField()
@@ -47,16 +51,16 @@ class UserPaymentCard(models.Model):
     postal_code = models.ForeignKey(UserContactInformation, on_delete=models.CASCADE,
                                     related_name='userpaymentcard_postal_code')
     user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
-    payment_default_balance = models.FloatField(blank=True, null=True)
+    payment_default_balance = models.FloatField(blank=True, null=True, default=10000)
 
     def __str__(self):
         return self.user.first_name + self.user.last_name
 
 
 class UserPaymentModel(models.Model):
-    option = models.ForeignKey(PaymentOptions, on_delete=models.CASCADE)
+    option = models.ForeignKey(PaymentOption, on_delete=models.CASCADE)
     payment_status = models.ForeignKey(PaymentStatus, on_delete=models.CASCADE)
-    payment_amount = models.DecimalField(max_digits=20, decimal_places=2)
+    payed_amount = models.DecimalField(max_digits=20, decimal_places=2)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     payment_date = models.DateTimeField(auto_now_add=True)
 
