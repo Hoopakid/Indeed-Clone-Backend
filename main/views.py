@@ -1,15 +1,29 @@
 from django.shortcuts import get_object_or_404
+from django_filters import rest_framework as filters
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView, GenericAPIView,
-    RetrieveUpdateAPIView
+    RetrieveUpdateAPIView, ListAPIView
 )
-from rest_framework.views import APIView
 from rest_framework.decorators import permission_classes
 from rest_framework import status
 
+from django_elasticsearch_dsl_drf.filter_backends import (
+    FilteringFilterBackend,
+    SearchFilterBackend,
+    SuggesterFilterBackend,
+)
+
+from elasticsearch_dsl import Q
+
+from django_elasticsearch_dsl_drf.constants import SUGGESTER_COMPLETION
+from django_elasticsearch_dsl_drf.viewsets import DocumentViewSet
+from django_elasticsearch_dsl_drf.pagination import PageNumberPagination
+
+from .custom_filters import JobFilter, ResumeFilter
+from .documents import DocumentJob
 from .models import (
     UploadJob, UploadResumeWithFile,
     CreateResumeOnIndeed, Discount,
@@ -22,25 +36,29 @@ from .serializers import (
     JobSerializer, ResumeSerializer,
     ResumeWithFileSerializer, DiscountSerializer,
     PaymentSerializer, UserPaymentCardSerializer,
-    ApplyJobSerializer
+    ApplyJobSerializer, DocumentJobSerializer
 )
 
 from accounts.permissions import IsSuperUserPermission
 
 
-class JobCreateAPIView(APIView):
-    @permission_classes(CanCreateJobPermission)
+class JobCreateAPIView(GenericAPIView):
+    serializer_class = JobSerializer
+    permission_classes = (CanCreateJobPermission,)
+
     def post(self, request, *args, **kwargs):
-        serializer = JobSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class JobDetailAPIView(APIView):
+class JobDetailAPIView(GenericAPIView):
+    serializer_class = JobSerializer
+
     def get(self, request):
         queryset = UploadJob.objects.all()
-        serializer = JobSerializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status.HTTP_200_OK)
 
 
@@ -50,19 +68,23 @@ class JobUpdateAPIView(RetrieveUpdateAPIView):
     permission_classes = (CanCreateJobPermission, IsHisObjectPermission)
 
 
-class ResumeCreateAPIView(APIView):
+class ResumeCreateAPIView(GenericAPIView):
+    serializer_class = ResumeSerializer
+
     @permission_classes(IsAuthenticated)
     def post(self, request, *args, **kwargs):
-        serializer = ResumeSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status.HTTP_200_OK)
 
 
-class ResumeCreateWithFileAPIView(APIView):
+class ResumeCreateWithFileAPIView(GenericAPIView):
+    serializer_class = ResumeWithFileSerializer
+
     @permission_classes(IsAuthenticated)
     def post(self, request, *args, **kwargs):
-        serializer = ResumeWithFileSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status.HTTP_200_OK)
@@ -74,7 +96,7 @@ class ResumeUpdateDestroyUpdateAPIView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated, IsHisObjectPermission)
 
 
-class FileResumeDestroyAPIView(APIView):
+class FileResumeDestroyAPIView(GenericAPIView):
     @permission_classes((IsHisObjectPermission, IsAuthenticated))
     def delete(self, request, pk):
         resume = get_object_or_404(UploadResumeWithFile, pk=pk)
@@ -82,7 +104,7 @@ class FileResumeDestroyAPIView(APIView):
         return Response(status.HTTP_204_NO_CONTENT)
 
 
-class DestroyDiscountAPIView(APIView):
+class DestroyDiscountAPIView(GenericAPIView):
     @permission_classes((IsSuperUserPermission, IsHisObjectPermission))
     def delete(self, request, discount_id):
         discount = get_object_or_404(Discount, pk=discount_id)
@@ -90,30 +112,34 @@ class DestroyDiscountAPIView(APIView):
         return Response(status.HTTP_204_NO_CONTENT)
 
 
-class AddDiscountForPaymentAPIView(APIView):
+class AddDiscountForPaymentAPIView(GenericAPIView):
+    serializer_class = DiscountSerializer
+
     @permission_classes(IsSuperUserPermission)
     def post(self, request):
-        serializer = DiscountSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status.HTTP_200_OK)
 
 
-class CreatePaymentOptionAPIView(APIView):
+class CreatePaymentOptionAPIView(GenericAPIView):
+    serializer_class = PaymentSerializer
+
     def get(self, request):
         payment_option = PaymentOption.objects.all()
-        serializer = PaymentSerializer(payment_option, many=True)
+        serializer = self.get_serializer(payment_option, many=True)
         return Response(serializer.data, status.HTTP_200_OK)
 
     @permission_classes(IsSuperUserPermission)
     def post(self, request):
-        serializer = PaymentSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status.HTTP_200_OK)
 
 
-class DestroyPaymentOptionAPIView(APIView):
+class DestroyPaymentOptionAPIView(GenericAPIView):
     @permission_classes((IsSuperUserPermission, IsHisObjectPermission))
     def delete(self, request, payment_id):
         payment_option = get_object_or_404(PaymentOption, pk=payment_id)
@@ -141,15 +167,15 @@ class ProcessPaymentAPIView(GenericAPIView):
             job_create.save()
 
             # Subtract the payment balance from the user's balance
-            payment_option = get_object_or_404(PaymentOption, pk=payment_option_id)
+            payment_option = get_object_or_404(PaymentOption, pk=int(payment_option_id))
             percentage_of_amount = payment_option.price * 100 / payment_option.discount.percentage_of_discount
             user_payment_card.payment_default_balance -= percentage_of_amount
             user_payment_card.save()
 
-            # Creating of the PaymentModel for the user
+            # Creating of PaymentModel for the user
             payment_model = UserPaymentModel.objects.create(
-                option=payment_option.id,
-                payment_status="Payment Successful",
+                option=payment_option,
+                payment_status=1,
                 payed_amount=percentage_of_amount,
                 user=request.user,
             )
@@ -158,7 +184,7 @@ class ProcessPaymentAPIView(GenericAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ApplyJobAPIView(APIView):
+class ApplyJobAPIView(GenericAPIView):
     @permission_classes(IsAuthenticated)
     def post(self, request, job_id):
         if UploadJob.objects.filter(pk=job_id).exists():
@@ -175,8 +201,88 @@ class ApplyJobAPIView(APIView):
         return Response(status.HTTP_204_NO_CONTENT)
 
 
-class GetAppliedJobs(APIView):
+class GetAppliedJobs(GenericAPIView):
+    serializer_class = ApplyJobSerializer
+
     def get(self, request):
         applied_jobs = ApplyJob.objects.filter(user=request.user)
-        serializer = ApplyJobSerializer(data=applied_jobs, many=True)
+        serializer = self.get_serializer(data=applied_jobs, many=True)
         return Response(serializer.data, status.HTTP_200_OK)
+
+
+class ResumeFilterAPIView(ListAPIView):
+    queryset = CreateResumeOnIndeed.objects.all()
+    serializer_class = ResumeSerializer
+    permission_classes = ()
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = ResumeFilter
+
+
+class JobFilterAPIView(ListAPIView):
+    queryset = UploadJob.objects.all()
+    serializer_class = JobSerializer
+    permission_classes = ()
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = JobFilter
+
+
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class JobSearchViewSet(DocumentViewSet):
+    document = DocumentJob
+    serializer_class = DocumentJobSerializer
+    pagination_class = CustomPageNumberPagination
+
+    filter_backends = [
+        FilteringFilterBackend,
+        SearchFilterBackend,
+        SuggesterFilterBackend,
+    ]
+
+    search_fields = (
+        'company_name',
+        'job_title',
+        'experience',
+    )
+
+    filter_fields = {
+        'company_name': 'company_name',
+        'job_title': 'job_title',
+        'experience': 'experience',
+    }
+
+    suggester_fields = {
+        'company_name': {
+            'field': 'company_name.suggest',
+            'suggesters': [
+                SUGGESTER_COMPLETION,
+            ],
+        },
+        'job_title': {
+            'field': 'job_title.suggest',
+            'suggesters': [
+                SUGGESTER_COMPLETION,
+            ],
+        },
+        'experience': {
+            'field': 'experience.suggest',
+            'suggesters': [
+                SUGGESTER_COMPLETION,
+            ],
+        }
+    }
+
+    def list(self, request, *args, **kwargs):
+        search_term = self.request.query_params.get('search', '')
+        query = Q('multi_match', query=search_term, fields=self.search_fields)
+        queryset = self.filter_queryset(self.get_queryset().query(query))
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

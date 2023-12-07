@@ -1,9 +1,14 @@
-from django.urls import path
+from django.urls import path, include
 
 from main.views import JobCreateAPIView, JobDetailAPIView, JobUpdateAPIView, ResumeCreateAPIView, \
     ResumeCreateWithFileAPIView, ResumeUpdateDestroyUpdateAPIView, FileResumeDestroyAPIView, \
     AddDiscountForPaymentAPIView, DestroyDiscountAPIView, CreatePaymentOptionAPIView, DestroyPaymentOptionAPIView, \
-    ProcessPaymentAPIView, ApplyJobAPIView, GetAppliedJobs
+    ProcessPaymentAPIView, ApplyJobAPIView, GetAppliedJobs, ResumeFilterAPIView, JobFilterAPIView, JobSearchViewSet
+
+from rest_framework import routers
+
+router = routers.DefaultRouter(trailing_slash=False)
+router.register('job-search', JobSearchViewSet, basename='search_job')
 
 urlpatterns = [
     # CRUD API of jobs
@@ -28,5 +33,12 @@ urlpatterns = [
 
     # CRD for apply jobs
     path('apply-job/<int:job_id>', ApplyJobAPIView.as_view(), name='apply-job'),
-    path('get-applied-jobs', GetAppliedJobs.as_view(), name='get-applied-jobs')
+    path('get-applied-jobs', GetAppliedJobs.as_view(), name='get-applied-jobs'),
+
+    # filters for resume and job
+    path('resume-filter', ResumeFilterAPIView.as_view(), name='resume-filter'),
+    path('job-filter', JobFilterAPIView.as_view(), name='job-filter'),
+
+    # including search set
+    path('', include(router.urls)),
 ]

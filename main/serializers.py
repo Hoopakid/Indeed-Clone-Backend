@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
+from django_elasticsearch_dsl_drf.serializers import DocumentSerializer
 from rest_framework import serializers
 
-from main.models import UploadJob, CreateResumeOnIndeed, UploadResumeWithFile, Discount, PaymentOption, \
+from .models import UploadJob, CreateResumeOnIndeed, UploadResumeWithFile, Discount, PaymentOption, \
     UserPaymentCard, JobCreate, ApplyJob
+from .documents import DocumentJob
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -21,7 +23,7 @@ class ResumeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CreateResumeOnIndeed
         fields = '__all__'
-        read_only_fields = ('user',)
+        # read_only_fields = ('user',)
 
 
 class ResumeWithFileSerializer(serializers.ModelSerializer):
@@ -65,3 +67,8 @@ class ApplyJobSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('user',)
 
+
+class DocumentJobSerializer(DocumentSerializer):
+    class Meta:
+        document = DocumentJob
+        fields = ('company_name', 'job_title', 'experience')

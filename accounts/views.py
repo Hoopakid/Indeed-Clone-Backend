@@ -53,7 +53,7 @@ class RegisterAPIView(GenericAPIView):
                 password=password1,
                 email=email
             )
-            user_serializer = UserSerializer(user)
+            user_serializer = self.get_serializer(user)
             return Response({'success': True, 'data': user_serializer.data})
         else:
             return Response({'success': False, 'message': 'Passwords are not same!'},

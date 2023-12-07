@@ -14,6 +14,8 @@ from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
+from elasticsearch_dsl.connections import connections
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -58,6 +60,9 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
     'channels',
+    'django_filters',
+    'django_elasticsearch_dsl',
+    'django_elasticsearch_dsl_drf',
 ]
 
 MIDDLEWARE = [
@@ -97,11 +102,11 @@ WSGI_APPLICATION = 'Indeed.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': os.environ.get('DJANGO_DB_NAME'),
+        'USER': os.environ.get('DJANGO_DB_USER'),
+        'PASSWORD': os.environ.get('DJANGO_DB_PASSWORD'),
+        'HOST': os.environ.get('DJANGO_DB_HOST'),
+        'PORT': os.environ.get('DJANGO_DB_PORT'),
     }
 }
 REST_AUTH = {
@@ -226,4 +231,16 @@ SIMPLE_JWT = {
     "TOKEN_BLACKLIST_SERIALIZER": "rest_framework_simplejwt.serializers.TokenBlacklistSerializer",
     "SLIDING_TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer",
     "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
+}
+
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': 'http://elasticsearch:9200',
+    },
+}
+
+connections.create_connection(hosts=['http://elasticsearch:9200'])
+
+ELASTICSEARCH_INDEX_NAMES = {
+    'main.DocumentJobs': 'main'
 }
