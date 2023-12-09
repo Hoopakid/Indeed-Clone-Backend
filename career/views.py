@@ -90,7 +90,7 @@ class MessageListCreateAPIView(GenericAPIView):
 
 class ReplyMessageAPIVIew(GenericAPIView):
     @decorators.permission_classes(IsAdminOrParticipant)
-    def put(self, request, message_id):
+    def post(self, request, message_id):
         message = get_object_or_404(Message, pk=message_id)
         serializer = MessageSerializer(message, data=request.data)
         if serializer.is_valid():

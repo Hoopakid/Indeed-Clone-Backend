@@ -18,5 +18,5 @@ urlpatterns = [
     # chat with other people or admin and you can do reply messages
     path('create-chat-list', ChatListCreateAPIView.as_view(), name='create-chat-list'),
     path('create-message-list', MessageListCreateAPIView.as_view(), name='create-message-list'),
-    path('reply-message', ReplyMessageAPIVIew.as_view(), name='reply-message'),
+    path('reply-message/<int:message_id>', ReplyMessageAPIVIew.as_view(), name='reply-message'),
 ]
